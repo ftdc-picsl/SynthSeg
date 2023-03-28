@@ -55,6 +55,7 @@ output_file_prefix = os.path.basename(output_prefix)
 synthseg_input = output_prefix + "SynthSegInput.nii.gz"
 
 if (args.mask is not None and os.path.isfile(args.mask)):
+    print(f"Cropping input image around mask", flush=True)
     subprocess.run(['ExtractRegionFromImageByMask', '3', input_t1w, synthseg_input, args.mask, str(1), str(args.mask_pad)])
 else:
     shutil.copyfile(input_t1w, synthseg_input)
@@ -62,7 +63,9 @@ else:
 # Resample to 1mm
 subprocess.run(['ResampleImage', '3', synthseg_input, synthseg_input, '1x1x1', '0', '4'])
 
-synthseg_args = ['--i', synthseg_input, '--o', output_prefix + 'SynthSeg.nii.gz']
+print(f"Input image: {input_t1w} resampled to {synthseg_input}")
+
+synthseg_args = ['--i', synthseg_input, '--o', output_prefix + 'SynthSeg.nii.gz', '--crop'] + [str(c) for c in args.crop]
 
 # Set up synthseg options
 if (args.post):
@@ -81,5 +84,7 @@ if (args.robust):
 
 
 # Now call synthseg
+print(f"Running synthseg on {synthseg_input}", flush=True)
+print(f"synthseg args: {synthseg_args}", flush=True)
 subprocess.run(['python', '/opt/SynthSeg/scripts/commands/SynthSeg_predict.py'] + synthseg_args)
 
