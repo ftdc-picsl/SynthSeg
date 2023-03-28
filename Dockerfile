@@ -1,4 +1,4 @@
-FROM cookpa/synthseg:conda-latest
+FROM cookpa/synthseg:conda-0.1
 
 # Copy all of ANTs. Can reduce container later by building a static ANTs and only copying programs
 # we need
