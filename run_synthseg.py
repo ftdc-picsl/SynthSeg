@@ -7,7 +7,12 @@ import shutil
 import SimpleITK as sitk
 import subprocess
 
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+class RawDefaultsHelpFormatter(
+    argparse.RawDescriptionHelpFormatter, argparse.ArgumentDefaultsHelpFormatter
+):
+    pass
+
+parser = argparse.ArgumentParser(formatter_class=RawDefaultsHelpFormatter,
                                  prog="synthseg brain segmentation", add_help = False, description='''
 Wrapper for brain segmentation using synthseg.
 
@@ -15,9 +20,13 @@ By default, synthseg input images are resampled to 1mm and cropped to 192 mm^3 a
 the image.
 
 In this container, the input image is automatically resampled to 1mm isotropic resolution with
-b-spline interpolation. The user can provide a brain mask, the image is then cropped and resampled
-about this mask, which should ensure that the synthseg region of interest contains the brain. The
-crop region is large enough to fit adult brains without running out of memory on the GPU.
+b-spline interpolation. The user can provide a brain mask, in which case the image is cropped and
+resampled about the mask, which should ensure that the synthseg region of interest contains the
+brain. The default crop region is large enough to fit most adult brains without running out of
+memory on the FTDC GPU (11 Gb capacity).
+
+If the brain mask is larger than the specified crop parameters, the crop is enlarged and synthseg is
+switched to CPU mode.
 
 Output is also simplified, the user only needs to specify a prefix with --output. Optional outputs are
 written to the same prefix with the appropriate suffixes.
@@ -38,7 +47,8 @@ synthseg.add_argument("--robust", action='store_true', help="Use robust fitting 
 synthseg.add_argument("--vol", action='store_true', help="Output a CSV file containing label volumes")
 synthseg.add_argument("--qc", action='store_true', help="Output a CSV file containing QC measures")
 synthseg.add_argument("--post", action='store_true', help="Output a multi-component image containing label posterior probabilities")
-synthseg.add_argument("--crop", help="Crop parameters, must be multiples of 32.", nargs='+', type=int, default = [224, 256, 192])
+synthseg.add_argument("--crop", help="Crop parameters, must be multiples of 32. If increasing beyond the default, " +
+                        "you may need to add --cpu to avoid running out of memory", nargs='+', type=int, default = [192, 256, 192])
 synthseg.add_argument("--cpu", action='store_true', help="Use CPU instead of GPU, even if GPU is available")
 
 args = parser.parse_args()
