@@ -70,6 +70,8 @@ synthseg_input = output_prefix + "SynthSegInput.nii.gz"
 
 synthseg_args = ['--i', synthseg_input, '--o', output_prefix + 'SynthSeg.nii.gz']
 
+crop_params = args.crop
+
 if (args.mask is not None and os.path.isfile(args.mask)):
     print(f"Cropping input image around mask", flush=True)
     subprocess.run(['ExtractRegionFromImageByMask', '3', input_t1w, synthseg_input, args.mask, str(1), str(args.mask_pad)])
@@ -90,8 +92,6 @@ if (args.mask is not None and os.path.isfile(args.mask)):
     # The length of the sides of the bounding box in physical coordinates
     # ITK uses LPS but lengths of the BB are the same as NIFTI RAS
     bb_extent_ras = np.round(np.abs(np.subtract(bb_max_mm, bb_min_mm)))
-
-    crop_params = args.crop
 
     for idx in range(0,3):
         if bb_extent_ras[idx] > args.crop[idx]:
