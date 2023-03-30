@@ -6,8 +6,9 @@ Containers are [available on DockerHub](https://hub.docker.com/repository/docker
 ```
 usage: synthseg brain segmentation --input INPUT --output OUTPUT [-h]
                                    [--mask MASK] [--mask-pad MASK_PAD]
-                                   [--parc] [--robust] [--vol] [--qc] [--post]
-                                   [--crop CROP [CROP ...]] [--cpu]
+                                   [--resample-native] [--cpu]
+                                   [--crop CROP [CROP ...]] [--post] [--parc]
+                                   [--qc] [--robust] [--vol]
 
 Wrapper for brain segmentation using synthseg.
 
@@ -35,22 +36,26 @@ Optional arguments:
   --mask MASK           Brain mask about which to crop the input image
                         (default: None)
   --mask-pad MASK_PAD   Padding around brain mask, in voxels (default: 32)
+  --resample-native     Resample the output images to the native space. This
+                        is a post-processing step, all QC / volume meaures are
+                        computed in the 1mm space. (default: False)
 
 SynthSeg arguments:
-  --parc                Do cortical parcellation (default: False)
-  --robust              Use robust fitting for low-resolution or other
-                        challenging data (default: False)
-  --vol                 Output a CSV file containing label volumes (default:
-                        False)
-  --qc                  Output a CSV file containing QC measures (default:
-                        False)
-  --post                Output a multi-component image containing label
-                        posterior probabilities (default: False)
+  --cpu                 Use CPU instead of GPU, even if GPU is available
+                        (default: False)
   --crop CROP [CROP ...]
                         Crop parameters, must be multiples of 32. If
                         increasing beyond the default, you may need to add
                         --cpu to avoid running out of memory (default: [192,
                         256, 192])
-  --cpu                 Use CPU instead of GPU, even if GPU is available
-                        (default: False)
+  --post                Output a multi-component image containing label
+                        posterior probabilities (default: False)
+  --parc                Do cortical parcellation (default: False)
+  --qc                  Output a CSV file containing QC measures (default:
+                        False)
+  --robust              Use robust fitting for low-resolution or other
+                        challenging data (default: False)
+  --vol                 Output a CSV file containing label volumes (default:
+                        False)
 ```
+
