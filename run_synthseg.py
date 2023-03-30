@@ -41,7 +41,7 @@ optional.add_argument('-h', '--help', action='help', help='show this help messag
 optional.add_argument('--mask', help='Brain mask about which to crop the input image', type=str)
 optional.add_argument('--mask-pad', help='Padding around brain mask, in voxels', type=int, default = 32)
 optional.add_argument('--resample-native', action='store_true', help='Resample the output images to the native space. \
-                     This is a post-processing step, all QC / volume meaures are computed in the 1mm space.')
+                     This is a post-processing step, all QC / volume measures are computed in the 1mm space.')
 synthseg = parser.add_argument_group('SynthSeg arguments')
 synthseg.add_argument('--cpu', action='store_true', help='Use CPU instead of GPU, even if GPU is available')
 synthseg.add_argument('--crop', help='Crop parameters, must be multiples of 32. If increasing beyond the default, ' +
