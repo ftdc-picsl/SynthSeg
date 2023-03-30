@@ -34,22 +34,23 @@ written to the same prefix with the appropriate suffixes.
 ''')
 
 required = parser.add_argument_group('Required arguments')
-required.add_argument("--input", help="Input structural image", type=str, required=True)
-required.add_argument("--output", help="Output prefix", type=str, required=True)
+required.add_argument('--input', help='Input structural image', type=str, required=True)
+required.add_argument('--output', help='Output prefix', type=str, required=True)
 optional = parser.add_argument_group('Optional arguments')
-optional.add_argument("-h", "--help", action="help", help="show this help message and exit")
-optional.add_argument("--mask", help="Brain mask about which to crop the input image", type=str)
-optional.add_argument("--mask-pad", help="Padding around brain mask, in voxels", type=int, default = 32)
-
+optional.add_argument('-h', '--help', action='help', help='show this help message and exit')
+optional.add_argument('--mask', help='Brain mask about which to crop the input image', type=str)
+optional.add_argument('--mask-pad', help='Padding around brain mask, in voxels', type=int, default = 32)
+optional.add_argument('--resample-native', action='store_true', help='Resample the output images to the native space. \
+                     This is a post-processing step, all QC / volume meaures are computed in the 1mm space.')
 synthseg = parser.add_argument_group('SynthSeg arguments')
-synthseg.add_argument("--parc", action='store_true', help="Do cortical parcellation")
-synthseg.add_argument("--robust", action='store_true', help="Use robust fitting for low-resolution or other challenging data")
-synthseg.add_argument("--vol", action='store_true', help="Output a CSV file containing label volumes")
-synthseg.add_argument("--qc", action='store_true', help="Output a CSV file containing QC measures")
-synthseg.add_argument("--post", action='store_true', help="Output a multi-component image containing label posterior probabilities")
-synthseg.add_argument("--crop", help="Crop parameters, must be multiples of 32. If increasing beyond the default, " +
-                        "you may need to add --cpu to avoid running out of memory", nargs='+', type=int, default = [192, 256, 192])
-synthseg.add_argument("--cpu", action='store_true', help="Use CPU instead of GPU, even if GPU is available")
+synthseg.add_argument('--cpu', action='store_true', help='Use CPU instead of GPU, even if GPU is available')
+synthseg.add_argument('--crop', help='Crop parameters, must be multiples of 32. If increasing beyond the default, ' +
+                        'you may need to add --cpu to avoid running out of memory', nargs='+', type=int, default = [192, 256, 192])
+synthseg.add_argument('--post', action='store_true', help='Output a multi-component image containing label posterior probabilities')
+synthseg.add_argument('--parc', action='store_true', help='Do cortical parcellation')
+synthseg.add_argument('--qc', action='store_true', help='Output a CSV file containing QC measures')
+synthseg.add_argument('--robust', action='store_true', help='Use robust fitting for low-resolution or other challenging data')
+synthseg.add_argument('--vol', action='store_true', help='Output a CSV file containing label volumes')
 
 args = parser.parse_args()
 
@@ -67,8 +68,6 @@ output_file_prefix = os.path.basename(output_prefix)
 
 # Crop input data if applicable
 synthseg_input = output_prefix + "SynthSegInput.nii.gz"
-
-synthseg_args = ['--i', synthseg_input, '--o', output_prefix + 'SynthSeg.nii.gz']
 
 crop_params = args.crop
 
@@ -109,11 +108,13 @@ subprocess.run(['ResampleImage', '3', synthseg_input, synthseg_input, '1x1x1', '
 
 print(f"Input image: {input_t1w} resampled to {synthseg_input}")
 
-synthseg_args = synthseg_args + ['--crop'] + [str(c) for c in crop_params]
+output_seg = output_prefix + 'SynthSeg.nii.gz'
+
+synthseg_args = ['--i', synthseg_input, '--o', output_seg, '--crop'] + [str(c) for c in crop_params]
 
 # Set up synthseg options
 if (args.post):
-    post_output_file = output_prefix + 'posteriors.nii.gz'
+    post_output_file = output_prefix + 'Posteriors.nii.gz'
     synthseg_args = synthseg_args + ['--post', post_output_file]
 if (args.qc):
     qc_output_file = output_prefix + 'QC.csv'
@@ -133,3 +134,11 @@ print(f"Running synthseg on {synthseg_input}", flush=True)
 print(f"synthseg args: {synthseg_args}", flush=True)
 subprocess.run(['python', '/opt/SynthSeg/scripts/commands/SynthSeg_predict.py'] + synthseg_args)
 
+if (args.resample_native):
+    print("Resampling output to input native space")
+    subprocess.run(['antsApplyTransforms', '-d', '3', '-i', output_seg, '-o',
+                    output_prefix + 'SynthSegNative.nii.gz', '-t', 'Identity', '-r', input_t1w, '-n',
+                    'GenericLabel', '--verbose'])
+    if (args.post):
+        subprocess.run(['antsApplyTransforms', '-d', '3', '-e', '3', '-i', post_output_file, '-o',
+                        output_prefix + 'PosteriorsNative.nii.gz', '-t', 'Identity', '-r', input_t1w, '--verbose'])
