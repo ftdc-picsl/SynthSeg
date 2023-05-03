@@ -54,6 +54,12 @@ synthseg.add_argument('--vol', action='store_true', help='Output a CSV file cont
 
 args = parser.parse_args()
 
+# These control multi-threading for basic operations, set to 1 because they don't take much time
+# You can separately control tensorflow threads in the call to synthseg, but this might increase the
+# already substantial memory requirements, so that's not currently an option
+os.environ['OMP_NUM_THREADS'] = "1"
+os.environ['ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS'] = "1"
+
 use_cpu = args.cpu
 
 input_t1w = os.path.realpath(args.input)
