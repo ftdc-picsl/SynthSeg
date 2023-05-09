@@ -20,16 +20,44 @@ By default, synthseg input images are resampled to 1mm and cropped to 192 mm^3 a
 the image.
 
 In this container, the input image is automatically resampled to 1mm isotropic resolution with
-b-spline interpolation. The user can provide a brain mask, in which case the image is cropped and
-resampled about the mask, which should ensure that the synthseg region of interest contains the
-brain. The default crop region is large enough to fit most adult brains without running out of
-memory on the FTDC GPU (11 Gb capacity).
+b-spline interpolation.
+
+It is recommended that the user provide a brain mask, in which case the image is cropped and
+resampled about the mask bounding box. This should ensure that the synthseg region of interest
+contains the brain. The default crop region is large enough to fit most adult brains without running
+out of memory on the FTDC GPU (11 Gb capacity).
 
 If the brain mask is larger than the specified crop parameters, the crop is enlarged and synthseg is
 switched to CPU mode.
 
-Output is also simplified, the user only needs to specify a prefix with --output. Optional outputs are
-written to the same prefix with the appropriate suffixes.
+A brain mask can be computed quickly and robustly with SynthStrip.
+
+For output, specify a prefix with --output. Optional outputs are written to the same prefix with the
+appropriate suffixes, explained below.
+
+Output suffixes:
+
+  SynthSegInput.nii.gz - The resampled image used as input for SynthSeg. If a brain mask is used,
+  this image will also be cropped to the bounding box of the mask plus a constant padding, before
+  running SynthSeg. Otherwise, the original image is resampled to 1mm resolution.
+
+  SynthSeg.nii.gz - The SynthSeg output label image. This is in the same space as the SynthSegInput
+  image.
+
+Optional output suffixes:
+
+  PosteriorsOrig.nii.gz - Posterior probabilites for each label, resampled to the original space of
+  the input structural image.
+
+  Posteriors.nii.gz - Posterior probabilities for each label, in space of the 1mm isotropic
+  SynthSegInput image.
+
+  QC.csv - QC metrics produced by SynthSeg.
+
+  SynthSegOrig.nii.gz - The SynthSeg output label image, resampled to the original space of
+  the input structural image.
+
+  Volumes.csv - Label volumes computed by SynthSeg in the SynthSegInput space.
 
 ''')
 
@@ -40,7 +68,7 @@ optional = parser.add_argument_group('Optional arguments')
 optional.add_argument('-h', '--help', action='help', help='show this help message and exit')
 optional.add_argument('--mask', help='Brain mask about which to crop the input image', type=str)
 optional.add_argument('--mask-pad', help='Padding around brain mask, in voxels', type=int, default = 32)
-optional.add_argument('--resample-native', action='store_true', help='Resample the output images to the native space. \
+optional.add_argument('--resample-orig', action='store_true', help='Resample the output images to the original space. \
                      This is a post-processing step, all QC / volume measures are computed in the 1mm space.')
 synthseg = parser.add_argument_group('SynthSeg arguments')
 synthseg.add_argument('--cpu', action='store_true', help='Use CPU instead of GPU, even if GPU is available')
@@ -140,11 +168,11 @@ print(f"Running synthseg on {synthseg_input}", flush=True)
 print(f"synthseg args: {synthseg_args}", flush=True)
 subprocess.run(['python', '/opt/SynthSeg/scripts/commands/SynthSeg_predict.py'] + synthseg_args)
 
-if (args.resample_native):
-    print("Resampling output to input native space")
+if (args.resample_orig):
+    print("Resampling output to input orig space")
     subprocess.run(['antsApplyTransforms', '-d', '3', '-i', output_seg, '-o',
-                    output_prefix + 'SynthSegNative.nii.gz', '-t', 'Identity', '-r', input_t1w, '-n',
+                    output_prefix + 'SynthSegOrig.nii.gz', '-t', 'Identity', '-r', input_t1w, '-n',
                     'GenericLabel', '--verbose'])
     if (args.post):
         subprocess.run(['antsApplyTransforms', '-d', '3', '-e', '3', '-i', post_output_file, '-o',
-                        output_prefix + 'PosteriorsNative.nii.gz', '-t', 'Identity', '-r', input_t1w, '--verbose'])
+                        output_prefix + 'PosteriorsOrig.nii.gz', '-t', 'Identity', '-r', input_t1w, '--verbose'])
