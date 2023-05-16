@@ -3,59 +3,30 @@ Containerized implementation of SynthSeg with additional preprocessing options
 
 Containers are [available on DockerHub](https://hub.docker.com/repository/docker/cookpa/synthseg-mask/general)
 
-```
-usage: synthseg brain segmentation --input INPUT --output OUTPUT [-h]
-                                   [--mask MASK] [--mask-pad MASK_PAD]
-                                   [--resample-native] [--cpu]
-                                   [--crop CROP [CROP ...]] [--post] [--parc]
-                                   [--qc] [--robust] [--vol]
 
-Wrapper for brain segmentation using synthseg.
+## Base image
 
-By default, synthseg input images are resampled to 1mm and cropped to 192 mm^3 about the center of
-the image.
+https://github.com/cookpa/SynthSegContainer - go here if you want to build SynthSeg that just runs the built-in prediction script.
 
-In this container, the input image is automatically resampled to 1mm isotropic resolution with
-b-spline interpolation. The user can provide a brain mask, in which case the image is cropped and
-resampled about the mask, which should ensure that the synthseg region of interest contains the
-brain. The default crop region is large enough to fit most adult brains without running out of
-memory on the FTDC GPU (11 Gb capacity).
 
-If the brain mask is larger than the specified crop parameters, the crop is enlarged and synthseg is
-switched to CPU mode.
+## Licensing and citations
 
-Output is also simplified, the user only needs to specify a prefix with --output. Optional outputs are
-written to the same prefix with the appropriate suffixes.
+This container uses SynthSeg, please see its license and cite the appropriate papers.
 
-Required arguments:
-  --input INPUT         Input structural image (default: None)
-  --output OUTPUT       Output prefix (default: None)
+[SynthSeg license](https://github.com/BBillot/SynthSeg/blob/master/LICENSE.txt).
 
-Optional arguments:
-  -h, --help            show this help message and exit
-  --mask MASK           Brain mask about which to crop the input image
-                        (default: None)
-  --mask-pad MASK_PAD   Padding around brain mask, in voxels (default: 32)
-  --resample-native     Resample the output images to the native space. This
-                        is a post-processing step, all QC / volume meaures are
-                        computed in the 1mm space. (default: False)
+The authors ask that if it is used in published research, to cite:
 
-SynthSeg arguments:
-  --cpu                 Use CPU instead of GPU, even if GPU is available
-                        (default: False)
-  --crop CROP [CROP ...]
-                        Crop parameters, must be multiples of 32. If
-                        increasing beyond the default, you may need to add
-                        --cpu to avoid running out of memory (default: [192,
-                        256, 192])
-  --post                Output a multi-component image containing label
-                        posterior probabilities (default: False)
-  --parc                Do cortical parcellation (default: False)
-  --qc                  Output a CSV file containing QC measures (default:
-                        False)
-  --robust              Use robust fitting for low-resolution or other
-                        challenging data (default: False)
-  --vol                 Output a CSV file containing label volumes (default:
-                        False)
-```
+SynthSeg: Domain Randomisation for Segmentation of Brain MRI Scans of any
+Contrast and Resolution
+B. Billot, D.N. Greve, O. Puonti, A. Thielscher, K. Van Leemput, B. Fischl, A.V.
+Dalca, J.E. Iglesias (https://pubmed.ncbi.nlm.nih.gov/36857946/)
+
+For cortical parcellation, automated QC, or robust fitting, please also cite the following
+paper:
+
+Robust Segmentation of Brain MRI in the Wild with Hierarchical CNNs and no Retraining
+B. Billot, M. Colin, S.E. Arnold, S. Das, J.E. Iglesias [MICCAI
+2022](https://link.springer.com/chapter/10.1007/978-3-031-16443-9_52)
+
 
