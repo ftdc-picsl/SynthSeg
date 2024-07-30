@@ -234,9 +234,6 @@ if args.resample_orig or args.antsct:
         for label, ants_label in label_to_ants.items():
             output_array[synthseg_array == label] = ants_label
 
-        # add unlabeled CSF
-
-
         output_image = sitk.GetImageFromArray(output_array)
         output_image.SetOrigin(synthseg_labels.GetOrigin())
         output_image.SetSpacing(synthseg_labels.GetSpacing())
