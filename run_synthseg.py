@@ -68,14 +68,18 @@ optional = parser.add_argument_group('Optional arguments')
 optional.add_argument('-h', '--help', action='help', help='show this help message and exit')
 optional.add_argument('--mask', help='Brain mask about which to crop the input image', type=str)
 optional.add_argument('--mask-pad', help='Padding around brain mask, in voxels', type=int, default = 32)
-optional.add_argument('--resample-orig', action='store_true', help='Resample the output images to the original space. \
-                     This is a post-processing step, all QC / volume measures are computed in the 1mm space.')
+optional.add_argument('--resample-orig', action='store_true', help='Resample the output images to the original space. '
+                      'This is a post-processing step, all QC / volume measures are computed in the 1mm space.')
 synthseg = parser.add_argument_group('SynthSeg arguments')
 synthseg.add_argument('--cpu', action='store_true', help='Use CPU instead of GPU, even if GPU is available')
-synthseg.add_argument('--crop', help='Crop parameters, must be multiples of 32. If increasing beyond the default, ' +
-                        'you may need to add --cpu to avoid running out of memory', nargs='+', type=int, default = [192, 256, 192])
-synthseg.add_argument('--post', action='store_true', help='Output a multi-component image containing label posterior probabilities')
+synthseg.add_argument('--crop', help='Crop parameters, must be multiples of 32. If increasing beyond the default, '
+                      'you may need to add --cpu to avoid running out of memory', nargs='+', type=int,
+                      default = [192, 256, 192])
+synthseg.add_argument('--post', action='store_true', help='Output a multi-component image containing label posterior '
+                      'probabilities')
 synthseg.add_argument('--parc', action='store_true', help='Do cortical parcellation')
+optional.add_argument('--antsct', action='store_true', help='Output results in antsct format (implies --resample-orig '
+                      'and --post)')
 synthseg.add_argument('--qc', action='store_true', help='Output a CSV file containing QC measures')
 synthseg.add_argument('--robust', action='store_true', help='Use robust fitting for low-resolution or other challenging data')
 synthseg.add_argument('--vol', action='store_true', help='Output a CSV file containing label volumes')
@@ -168,11 +172,103 @@ print(f"Running synthseg on {synthseg_input}", flush=True)
 print(f"synthseg args: {synthseg_args}", flush=True)
 subprocess.run(['python', '/opt/SynthSeg/scripts/commands/SynthSeg_predict.py'] + synthseg_args)
 
-if (args.resample_orig):
+if args.resample_orig or args.antsct:
     print("Resampling output to input orig space")
     subprocess.run(['antsApplyTransforms', '-d', '3', '-i', output_seg, '-o',
                     output_prefix + 'SynthSegOrig.nii.gz', '-t', 'Identity', '-r', input_t1w, '-n',
                     'GenericLabel', '--verbose'])
-    if (args.post):
+    if args.post or args.antsct:
         subprocess.run(['antsApplyTransforms', '-d', '3', '-e', '3', '-i', post_output_file, '-o',
                         output_prefix + 'PosteriorsOrig.nii.gz', '-t', 'Identity', '-r', input_t1w, '--verbose'])
+    if args.parc:
+        subprocess.run(['antsApplyTransforms', '-d', '3', '-i', output_prefix + 'CorticalParcellation.nii.gz', '-o',
+                        output_prefix + 'CorticalParcellationOrig.nii.gz', '-t', 'Identity', '-r', input_t1w, '-n',
+                        'GenericLabel', '--verbose'])
+
+    # If requested, output in antsct format
+    if args.antsct:
+        print("Outputting in antsct format")
+        synthseg_labels = sitk.ReadImage(output_prefix + 'SynthSegOrig.nii.gz')
+
+        # Convert to antsct labels
+        label_to_ants = {
+            0: 0,  # background
+            2: 3,  # left_cerebral_white_matter
+            3: 2,  # left_cerebral_cortex
+            4: 1,  # left_lateral_ventricle
+            5: 1,  # left_inferior_lateral_ventricle
+            7: 6,  # left_cerebellum_white_matter
+            8: 6,  # left_cerebellum_cortex
+            10: 4,  # left_thalamus
+            11: 4,  # left_caudate
+            12: 4,  # left_putamen
+            13: 4,  # left_pallidum
+            14: 1,  # 3rd_ventricle
+            15: 1,  # 4th_ventricle
+            16: 5,  # brain-stem
+            17: 4,  # left_hippocampus
+            18: 4,  # left_amygdala
+            24: 1,  # CSF
+            26: 4,  # left_accumbens_area
+            28: 4,  # left_ventral_DC
+            41: 3,  # right_cerebral_white_matter
+            42: 2,  # right_cerebral_cortex
+            43: 1,  # right_lateral_ventricle
+            44: 1,  # right_inferior_lateral_ventricle
+            46: 6,  # right_cerebellum_white_matter
+            47: 6,  # right_cerebellum_cortex
+            49: 4,  # right_thalamus
+            50: 4,  # right_caudate
+            51: 4,  # right_putamen
+            52: 4,  # right_pallidum
+            53: 4,  # right_hippocampus
+            54: 4,  # right_amygdala
+            58: 4,  # right_accumbens_area
+            60: 4   # right_ventral_DC
+        }
+
+        synthseg_array = sitk.GetArrayFromImage(synthseg_labels)
+
+        output_array = np.zeros_like(synthseg_array)
+
+        for label, ants_label in label_to_ants.items():
+            output_array[synthseg_array == label] = ants_label
+
+        # add unlabeled CSF
+
+
+        output_image = sitk.GetImageFromArray(output_array)
+        output_image.SetOrigin(synthseg_labels.GetOrigin())
+        output_image.SetSpacing(synthseg_labels.GetSpacing())
+        output_image.SetDirection(synthseg_labels.GetDirection())
+
+        sitk.WriteImage(output_image, output_prefix + 'SynthSegToAntsCT.nii.gz')
+
+        prob_image = sitk.ReadImage(output_prefix + 'PosteriorsOrig.nii.gz')
+
+        # Get the numpy array from the probability image
+        prob_array = sitk.GetArrayFromImage(prob_image)
+
+        # Initialize a list of arrays for category probabilities, for ants posteriors
+        ants_probs = [np.zeros(prob_array.shape[1:], dtype=prob_array.dtype) for _ in range(6)]
+
+        # Sum of probabilities for all categories, use this to label
+        sum_probs = np.zeros(prob_array.shape[1:], dtype=prob_array.dtype)
+
+        # Iterate over the labels and add probabilities to the corresponding ants categories
+        for idx, label in enumerate(label_to_ants.keys()):
+            if (label == 0):
+                continue
+            category = label_to_ants[label]
+            ants_probs[category - 1] += prob_array[idx]
+
+        for i, category_prob in enumerate(ants_probs):
+            ants_posterior = sitk.GetImageFromArray(category_prob)
+            # Use 3D synthseg_labels for header info
+            ants_posterior.SetOrigin(synthseg_labels.GetOrigin())
+            ants_posterior.SetSpacing(synthseg_labels.GetSpacing())
+            ants_posterior.SetDirection(synthseg_labels.GetDirection())
+            sitk.WriteImage(ants_posterior, output_prefix + 'AntsctPosteriors' + str(i + 1) + '.nii.gz')
+
+
+
